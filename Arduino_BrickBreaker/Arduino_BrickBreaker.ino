@@ -21,6 +21,8 @@
 #define BRICK_WIDTH 16
 #define BRICK_HEIGHT 4
 
+Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT);
+
 struct Palette
 {
   uint8_t maxHealth;
@@ -70,16 +72,11 @@ struct Ball
   }
 };
 
-/*struct Health
+struct Health
 {
   int16_t circleRadius = 2;
   int16_t coverCircleRadius = 8;
   int16_t coverCircleX;
-  int16_t leftCircleX;
-  int16_t rightCircleX;
-  int16_t triangle_X_leftCorner;
-  int16_t triangle_X_rightCorner;
-  int16_t triangle_X_middleCorner;
   int16_t coverCircleY;
   int16_t leftCircleY;
   int16_t rightCircleY;
@@ -87,20 +84,15 @@ struct Ball
   int16_t triangle_Y_rightCorner;
   int16_t triangle_Y_middleCorner;
 
-  void initializeHealthPos(int16_t& _coverCircleX, int16_t& _coverCircleY)
+  void initializeHealthPos(int16_t _coverCircleX, int16_t _coverCircleY)
   {
     coverCircleX = _coverCircleX;
     coverCircleY = _coverCircleY;
-    leftCircleX = coverCircleX - circleRadius;
-    rightCircleX = coverCircleX + circleRadius;
-    leftCircleY = coverCircleY - 1;
-    rightCircleY = coverCircleY - 1;
-    triangle_X_leftCorner = leftCircleX - circleRadius;
-    triangle_X_rightCorner = rightCircleX + circleRadius;
-    triangle_X_middleCorner = coverCircleX;
-    triangle_Y_leftCorner = leftCircleY;
-    triangle_Y_rightCorner = rightCircleY;
-    triangle_Y_middleCorner = rightCircleY + 5;
+    leftCircleY = _coverCircleY - 1;
+    rightCircleY = _coverCircleY - 1;
+    triangle_Y_leftCorner = _coverCircleY - 1;
+    triangle_Y_rightCorner = _coverCircleY - 1;
+    triangle_Y_middleCorner = _coverCircleY - 1 + 5;
   }
 
   void fallDownHealth()
@@ -112,15 +104,18 @@ struct Ball
     triangle_Y_rightCorner++;
     triangle_Y_middleCorner++;
   }
-};*/
+};
 
+Health health;
 Ball ball;
 Palette palette;
 uint8_t brickCoords[MAX_BRICK_AMOUNT][2] =  {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-                                        {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
+                                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
+                                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
 bool brickDisableOrderList[MAX_BRICK_AMOUNT] =  {false, false, false, false, false, false, false, false, false, false,
-                                        false, false, false, false, false, false, false, false, false, false};
+                                                 false, false, false, false, false, false, false, false, false, false,
+                                                 false, false, false, false, false, false, false, false, false, false};
 
 uint8_t brickAmount;
 uint8_t brickIndex;
@@ -146,7 +141,7 @@ uint8_t downButtonPrev; // prevent running in each frame when button is staying 
 uint8_t openingScreenOptionIndex = 0;
 uint8_t openingScreenOptionsY[2]= {30, 40};
 
-uint8_t nextChapterTimer;
+int8_t nextChapterTimer;
 uint8_t chapterNumber;
 
 enum OpeningOptions
@@ -157,7 +152,7 @@ enum OpeningOptions
 
 OpeningOptions currentOption;
 
-Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT);
+
 
 void initBegins()
 {
@@ -195,9 +190,9 @@ void initVariables()
     ball.radius = 1;
     ball.x = palette.paletteX + palette.paletteWidth / 2;
     ball.y = palette.paletteY - 2 * ball.radius;
-    float initdirectionX = random(0, 21);
-    ball.directionX = initdirectionX / 10 - 1;
-    ball.directionY = -1.f; // -1 -> up, 1 -> down
+    float initdirectionX = random(0, 31);
+    ball.directionX = (initdirectionX / 10 - 1);
+    ball.directionY = -1.5f; // -1 -> up, 1 -> down
 
     selectionButtonPrev = LOW;
     upButtonPrev = LOW;
@@ -309,14 +304,15 @@ void drawBall()
     display.fillCircle(ball.x, ball.y, ball.radius, WHITE);
 }
 
-/*void drawHealth(Health& health)
+/*void drawHealth(Health& _health)
 {
-    display.drawCircle(health.coverCircleX, health.coverCircleY, health.coverCircleRadius, WHITE);
-    display.fillCircle(health.leftCircleX, health.leftCircleY, health.circleRadius, WHITE);
-    display.fillCircle(health.rightCircleX, health.rightCircleY, health.circleRadius, WHITE);
-    display.fillTriangle(health.triangle_X_leftCorner, health.triangle_Y_leftCorner,
-                          health.triangle_X_rightCorner, health.triangle_Y_rightCorner,
-                          health.triangle_X_middleCorner, health.triangle_Y_middleCorner,  WHITE);
+    display.drawCircle(_health.coverCircleX, _health.coverCircleY, _health.coverCircleRadius, WHITE);
+    display.fillCircle(_health.coverCircleX - _health.circleRadius, _health.coverCircleY - 1, _health.circleRadius, WHITE);
+    display.fillCircle(_health.coverCircleX + _health.circleRadius, _health.coverCircleY - 1, _health.circleRadius, WHITE);
+    
+    display.fillTriangle(_health.coverCircleX - _health.circleRadius - _health.circleRadius, _health.coverCircleY - 1,
+                          _health.coverCircleX + _health.circleRadius + _health.circleRadius, _health.coverCircleY - 1,
+                          _health.coverCircleX, _health.coverCircleY - 1 + 5,  WHITE);
 }*/
 
 void ballCollisionChecks()
@@ -498,14 +494,13 @@ void winScreen()
   delay(1000);
   nextChapterTimer--;
 
-  if(nextChapterTimer == 0)
+  if(nextChapterTimer < 0)
   {
-      delay(1000);
-      brickAmount = 0;
       palette.score = 0;
       nextChapterTimer = 3;
       palette.currentHealth = 3;
       updateBricksForNewChapter();
+      updateBallSpeedForNextChapter(ball);
       reborn();
       bIsGameWin = false;
   }
@@ -513,14 +508,17 @@ void winScreen()
 
 void updateBricksForNewChapter()
 {
+  brickAmount = 0;
   chapterNumber++;
+  
   if(chapterNumber == 1)
   {
-      for(int i = 0; i < brickAmount; i++)
+      for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
       {
         if(i % 2 == 0)
         {
-          brickDisableOrderList[i] = false; 
+          brickDisableOrderList[i] = false;
+          brickAmount++;
         }
         else
         {
@@ -532,18 +530,27 @@ void updateBricksForNewChapter()
   else if(chapterNumber == 2)
   {
     // 8 9 10 11 14 15 16 17 20 21 22 23
-    for(int i = 0; i < brickAmount; i++)
+    for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
       if( i == 8 && i == 9 && i == 10 && i == 11 && 
       i == 14 && i == 15 && i == 16 && i == 17 && 
       i == 20 && i == 21 && i == 22 && i == 23)
       {
-        brickDisableOrderList[i] = true; 
+        brickDisableOrderList[i] = true;
         continue;
       }
-      brickDisableOrderList[i] = false; 
+      brickDisableOrderList[i] = false;
+      brickAmount++;
     }
   }
+
+  Serial.println(brickAmount);
+}
+
+void updateBallSpeedForNextChapter(Ball& _ball)
+{
+  _ball.directionX += _ball.directionX * 0.2;
+  _ball.directionY += _ball.directionY * 0.2;
 }
 
 void setup() 
@@ -553,13 +560,13 @@ void setup()
   initVariables();
   initBegins();
   initializeBricksPosition();
-
+  health.initializeHealthPos(62, 31);
 }
 
-void loop() {
-
+void loop() 
+{
   display.clearDisplay();
-
+  
   if(!bIsGameStart && !bIsGameOver && !bIsGameQuit)
   {
     openingScreen();
@@ -572,6 +579,12 @@ void loop() {
     {
       reborn();
       bIsReborn = false;
+    }
+
+    if(bShouldHealthFallDown)
+    {
+      //drawHealth(health);
+      //health.fallDownHealth();
     }
     
     palette.paletteMove();
