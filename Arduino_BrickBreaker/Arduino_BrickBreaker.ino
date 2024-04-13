@@ -5,61 +5,52 @@
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 
-#define OLED_ADDR 0x3C
-
 #define GAP 1
 #define MAX_BRICK_AMOUNT 30
 
-#define joyX A0
-#define joyY A1
-#define joyButton 2
+#define JOY_X A0 
+#define JOY_Y A1
+#define JOY_BUTTON 2
 
-#define upButton 3
-#define downButton 4
-#define selectionButton 5
+#define UP_BUTTON 3
+#define DOWN_BUTTON 4
+#define SELECTION_BUTTON 5
 
 #define BRICK_WIDTH 16
 #define BRICK_HEIGHT 4
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT);
 
-struct Palette
+typedef struct
 {
-  uint8_t maxHealth;
-  uint8_t currentHealth;
-  uint8_t paletteHeight;
-  uint8_t paletteWidth;
-  uint8_t paletteX;
-  uint8_t paletteY;
-  uint8_t paletteUpSide;
-  uint8_t paletteLeftSide;
-  uint8_t paletteRightSide;
-  uint8_t score;
+  uint8_t maxHealth = 3;
+  int8_t currentHealth = 3;
+  uint8_t height = 3;
+  uint8_t width = 20;
+  uint8_t x;
+  uint8_t y;
+  uint8_t score = 0;
 
-    void paletteMove()
+  void paletteMove()
   { 
-      //int xValue = analogRead(joyX);
-      int yValue = analogRead(joyY);
+    //int xValue = analogRead(JOY_X);
+    int yValue = analogRead(JOY_Y);
   
-      if (yValue < 10 && paletteX < OLED_WIDTH - paletteWidth) 
-      {
-        paletteX++;
-        paletteLeftSide++;
-        paletteRightSide++;    
-      }
+    if (yValue < 10 && x < OLED_WIDTH - width) 
+    {
+      x++; 
+    }
       
-      if (yValue > 1000 && paletteX > 0) 
-      {
-        paletteX--;
-        paletteLeftSide--;
-        paletteRightSide--;    
-      }
-  }
-};
+    if (yValue > 1000 && x > 0) 
+    {
+      x--;   
+    }
+  }  
+} Palette;
 
-struct Ball
+typedef struct
 {
-  float radius;
+  uint8_t radius = 2;
   float x;
   float y;
   float directionX; // - -> left, + -> rigth
@@ -70,55 +61,55 @@ struct Ball
       y += directionY;
       x += directionX;
   }
-};
+} Ball;
 
-struct Health
+typedef struct 
 {
-  int16_t circleRadius = 2;
-  int16_t coverCircleRadius = 8;
-  int16_t coverCircleX;
-  int16_t coverCircleY;
-  int16_t leftCircleY;
-  int16_t rightCircleY;
-  int16_t triangle_Y_leftCorner;
-  int16_t triangle_Y_rightCorner;
-  int16_t triangle_Y_middleCorner;
-
-  void initializeHealthPos(int16_t _coverCircleX, int16_t _coverCircleY)
+  uint8_t x;
+  uint8_t y;
+  uint8_t bottom;
+  bool shouldDown = false;
+  
+  void fallDown()
   {
-    coverCircleX = _coverCircleX;
-    coverCircleY = _coverCircleY;
-    leftCircleY = _coverCircleY - 1;
-    rightCircleY = _coverCircleY - 1;
-    triangle_Y_leftCorner = _coverCircleY - 1;
-    triangle_Y_rightCorner = _coverCircleY - 1;
-    triangle_Y_middleCorner = _coverCircleY - 1 + 5;
+    if(shouldDown)
+    {
+      y++;
+      bottom++;
+    }
   }
 
-  void fallDownHealth()
+  void collisionCheck(Palette& _palette)
   {
-    coverCircleY++;
-    leftCircleY++;
-    rightCircleY++;
-    triangle_Y_leftCorner++;
-    triangle_Y_rightCorner++;
-    triangle_Y_middleCorner++;
+    if (_palette.x < x && _palette.x + _palette.width > x && _palette.y <= bottom)
+    {
+      if (_palette.currentHealth < 3)
+      {
+        _palette.currentHealth++;
+      }
+      shouldDown = false;
+    }
+    else if (y > OLED_HEIGHT)
+    {
+      shouldDown = false;
+    }
   }
-};
+} Heart;
 
-Health health;
+typedef struct 
+{
+  uint8_t x;
+  uint8_t y;
+  bool isHit;
+} Brick;
+
 Ball ball;
 Palette palette;
-uint8_t brickCoords[MAX_BRICK_AMOUNT][2] =  {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-                                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0},
-                                             {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}};
 
-bool brickDisableOrderList[MAX_BRICK_AMOUNT] =  {false, false, false, false, false, false, false, false, false, false,
-                                                 false, false, false, false, false, false, false, false, false, false,
-                                                 false, false, false, false, false, false, false, false, false, false};
+Brick bricks[MAX_BRICK_AMOUNT];
+Heart hearts[MAX_BRICK_AMOUNT];
 
 uint8_t brickAmount;
-uint8_t brickIndex;
 
 bool bIsGameStart;
 bool bIsGameOver;
@@ -134,9 +125,9 @@ int16_t quitTextX = OLED_WIDTH;
 uint8_t selectionCursorY;
 uint8_t selectionCursorX;
 
-uint8_t selectionButtonPrev;
-uint8_t upButtonPrev; // prevent running in each frame when button is staying pressed
-uint8_t downButtonPrev; // prevent running in each frame when button is staying pressed
+uint8_t SELECTION_BUTTONPrev;
+uint8_t UP_BUTTONPrev; // prevent running in each frame when button is staying pressed
+uint8_t DOWN_BUTTONPrev; // prevent running in each frame when button is staying pressed
 
 uint8_t openingScreenOptionIndex = 0;
 uint8_t openingScreenOptionsY[2]= {30, 40};
@@ -152,19 +143,17 @@ enum OpeningOptions
 
 OpeningOptions currentOption;
 
-
-
 void initBegins()
 {
   Serial.begin(9600);
-  display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
 }
 
 void initVariables()
 {   
-    pinMode(upButton, INPUT);
-    pinMode(downButton, INPUT);
-    pinMode(selectionButton, INPUT);
+    pinMode(UP_BUTTON, INPUT);
+    pinMode(DOWN_BUTTON, INPUT);
+    pinMode(SELECTION_BUTTON, INPUT);
 
     bIsGameStart = false;
     bIsGameOver = false;
@@ -176,32 +165,22 @@ void initVariables()
     selectionCursorX = 45;
     selectionCursorY = 30;
 
-    palette.maxHealth = 3;
-    palette.currentHealth = palette.maxHealth;
-    palette.paletteWidth = 20;
-    palette.paletteHeight = 3;
-    palette.paletteX = OLED_WIDTH / 2 - palette.paletteWidth / 2;
-    palette.paletteY = OLED_HEIGHT - palette.paletteHeight;
-    palette.paletteUpSide = palette.paletteY;
-    palette.paletteLeftSide = palette.paletteX;
-    palette.paletteRightSide = palette.paletteX + palette.paletteWidth;
-    palette.score = 0;
+    palette.x = OLED_WIDTH / 2 - palette.width / 2;
+    palette.y = OLED_HEIGHT - palette.height;
 
-    ball.radius = 1;
-    ball.x = palette.paletteX + palette.paletteWidth / 2;
-    ball.y = palette.paletteY - 2 * ball.radius;
-    float initdirectionX = random(0, 31);
-    ball.directionX = (initdirectionX / 10 - 1);
+    //ball.radius = 1;
+    ball.x = palette.x + palette.width / 2;
+    ball.y = palette.y - 2 * ball.radius;
+    float initdirectionX = random(0, 21);
+    ball.directionX = initdirectionX / 10 - 1;
     ball.directionY = -1.5f; // -1 -> up, 1 -> down
 
-    selectionButtonPrev = LOW;
-    upButtonPrev = LOW;
-    downButtonPrev = LOW;
+    SELECTION_BUTTONPrev = LOW;
+    UP_BUTTONPrev = LOW;
+    DOWN_BUTTONPrev = LOW;
 
     currentOption = OpeningOptions::START;
     brickAmount = 0;
-    brickIndex = 0;
-
     nextChapterTimer = 3;
     chapterNumber = 0;
 }
@@ -230,25 +209,25 @@ void openingScreen()
   display.println("<");
 
   // MOVING UP THROUGH THE OPTIONS 
-  if(digitalRead(upButton) == HIGH && upButtonPrev == LOW && openingScreenOptionIndex != 0)
+  if(digitalRead(UP_BUTTON) == HIGH && UP_BUTTONPrev == LOW && openingScreenOptionIndex != 0)
   {
     openingScreenOptionIndex--;
     currentOption = (OpeningOptions)openingScreenOptionIndex;
     selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
   }
-  upButtonPrev = digitalRead(upButton);
+  UP_BUTTONPrev = digitalRead(UP_BUTTON);
   
   // MOVING DOWN THROUGH THE OPTIONS
-  if(digitalRead(downButton) == HIGH && downButtonPrev == LOW && openingScreenOptionIndex != 1)
+  if(digitalRead(DOWN_BUTTON) == HIGH && DOWN_BUTTONPrev == LOW && openingScreenOptionIndex != 1)
   {
     openingScreenOptionIndex++;
     currentOption = (OpeningOptions)openingScreenOptionIndex;
     selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
   }
-  downButtonPrev = digitalRead(downButton);
+  DOWN_BUTTONPrev = digitalRead(DOWN_BUTTON);
   
   // CHOOSE CURRENT OPTION
-  if(digitalRead(selectionButton) == HIGH && selectionButtonPrev == LOW)
+  if(digitalRead(SELECTION_BUTTON) == HIGH && SELECTION_BUTTONPrev == LOW)
   {
     switch(currentOption)
     {
@@ -261,7 +240,7 @@ void openingScreen()
     }
   }
   
-  selectionButtonPrev = digitalRead(selectionButton);
+  SELECTION_BUTTONPrev = digitalRead(SELECTION_BUTTON);
 }
 
 // Ekrandaki tuglalari olusturur
@@ -271,8 +250,11 @@ void initializeBricksPosition()
     {
       for( uint16_t x = BRICK_WIDTH + GAP; x < OLED_WIDTH - BRICK_WIDTH+ GAP; x += BRICK_WIDTH + GAP)
       {
-        brickCoords[brickAmount][0] = x;
-        brickCoords[brickAmount][1] = y;
+        bricks[brickAmount].x = x;
+        bricks[brickAmount].y = y;
+        hearts[brickAmount].x = x + (BRICK_WIDTH / 2); 
+        hearts[brickAmount].y = y + (BRICK_HEIGHT / 2); 
+        hearts[brickAmount].bottom = hearts[brickAmount].y + 5; 
         brickAmount++;        
       }
     }
@@ -280,40 +262,37 @@ void initializeBricksPosition()
 
 void drawBricks()
 {
-  uint8_t index = 0;
-    for (uint16_t y = BRICK_HEIGHT + GAP; y < OLED_HEIGHT / 2 - BRICK_HEIGHT + GAP; y+= BRICK_HEIGHT + GAP)
-    {
-      for( uint16_t x = BRICK_WIDTH+ GAP; x < OLED_WIDTH - BRICK_WIDTH + GAP; x += BRICK_WIDTH + GAP)
-      {
-        if(brickDisableOrderList[index] == false)
-        {
-          display.fillRect(x, y, BRICK_WIDTH, BRICK_HEIGHT, WHITE); 
-        }
-        index++;
-      }
-    }
+  for (int i = 0; i < brickAmount; i++)
+  {
+     if(bricks[i].isHit == false)
+     {
+       display.fillRect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, WHITE); 
+     }
+  }
 }
 
 void drawPalette()
 {
-    display.fillRect(palette.paletteX, palette.paletteY, palette.paletteWidth, palette.paletteHeight, WHITE);
+  display.fillRect(palette.x, palette.y, palette.width, palette.height, WHITE);
 }
 
 void drawBall()
 {
-    display.fillCircle(ball.x, ball.y, ball.radius, WHITE);
+  display.fillCircle(ball.x, ball.y, ball.radius, WHITE);
 }
 
-/*void drawHealth(Health& _health)
+void drawHealth()
 {
-    display.drawCircle(_health.coverCircleX, _health.coverCircleY, _health.coverCircleRadius, WHITE);
-    display.fillCircle(_health.coverCircleX - _health.circleRadius, _health.coverCircleY - 1, _health.circleRadius, WHITE);
-    display.fillCircle(_health.coverCircleX + _health.circleRadius, _health.coverCircleY - 1, _health.circleRadius, WHITE);
-    
-    display.fillTriangle(_health.coverCircleX - _health.circleRadius - _health.circleRadius, _health.coverCircleY - 1,
-                          _health.coverCircleX + _health.circleRadius + _health.circleRadius, _health.coverCircleY - 1,
-                          _health.coverCircleX, _health.coverCircleY - 1 + 5,  WHITE);
-}*/
+  for (int i = 0; i < brickAmount; i++)
+  {
+     if(hearts[i].shouldDown == true)
+     {
+           display.fillCircle(hearts[i].x - 2, hearts[i].y, 2, WHITE);
+           display.fillCircle(hearts[i].x + 2, hearts[i].y, 2, WHITE);
+           display.fillTriangle(hearts[i].x - 4, hearts[i].y, hearts[i].x + 4, hearts[i].y, hearts[i].x , hearts[i].y + 5, WHITE);
+     }
+  }
+}
 
 void ballCollisionChecks()
 {    
@@ -321,7 +300,9 @@ void ballCollisionChecks()
     if(ball.x < ball.radius || ball.x > OLED_WIDTH - ball.radius)
     {
       ball.directionX *= -1;  
+
     }
+
     // UP SCREEN BORDER COLLISION CHECK
     if(ball.y < ball.radius)
     {
@@ -341,7 +322,7 @@ void ballCollisionChecks()
     }
     
     // PALETTE COLISION CHECK
-    if(ball.x <= palette.paletteRightSide && ball.x >= palette.paletteLeftSide && ball.y + ball.radius >= palette.paletteUpSide)
+    if(ball.x <= palette.x + palette.width && ball.x >= palette.x && ball.y + ball.radius >= palette.y)
     {
       ball.directionY *= -1;
     }
@@ -349,31 +330,31 @@ void ballCollisionChecks()
     for(int i = 0; i < brickAmount; i++)
     {
       // UP AND DOWN BORDER CHECK
-      if( brickDisableOrderList[i] == false && 
-          ball.x <= brickCoords[i][0] + BRICK_WIDTH && // LEFT BORDER 
-          ball.x >= brickCoords[i][0] && // RIGTH BORDER
-          ((ball.y > brickCoords[i][1] && ball.y - brickCoords[i][1] <= ball.radius + BRICK_HEIGHT) || // DOWN BORDER
-           (ball.y < brickCoords[i][1] && ball.y - brickCoords[i][1] >= -ball.radius)) // UP BORDER
+      if( bricks[i].isHit == false && 
+          ball.x <= bricks[i].x + BRICK_WIDTH && // LEFT BORDER 
+          ball.x >= bricks[i].x && // RIGTH BORDER
+          ((ball.y > bricks[i].y && ball.y - bricks[i].y <= ball.radius + BRICK_HEIGHT) || // DOWN BORDER
+           (ball.y < bricks[i].y && ball.y - bricks[i].y >= -ball.radius)) // UP BORDER
         )
       {
-        brickDisableOrderList[i] = true;
+        bricks[i].isHit = true;
         ball.directionY *= -1;
         palette.score++;
-        //bShouldHealthFallDown = shouldHealthFallDown();
+        hearts[i].shouldDown = shouldHeartDown();
       }
 
 
-      else if( brickDisableOrderList[i] == false && 
-          ball.y <= brickCoords[i][1] + BRICK_HEIGHT &&
-          ball.y >= brickCoords[i][1] &&
-          ((ball.x > brickCoords[i][0] && ball.x - brickCoords[i][0] <= ball.radius + BRICK_WIDTH) || 
-           (ball.x < brickCoords[i][0] && ball.x - brickCoords[i][0] >= -ball.radius))
+      else if( bricks[i].isHit == false && 
+          ball.y <= bricks[i].y + BRICK_HEIGHT &&
+          ball.y >= bricks[i].y &&
+          ((ball.x > bricks[i].x && ball.x - bricks[i].x <= ball.radius + BRICK_WIDTH) || 
+           (ball.x < bricks[i].x && ball.x - bricks[i].x >= -ball.radius))
         )
       {
-        brickDisableOrderList[i] = true;
+        bricks[i].isHit = true;
         ball.directionX *= -1;
         palette.score++; 
-        //bShouldHealthFallDown = shouldHealthFallDown();
+        hearts[i].shouldDown = shouldHeartDown();
       }
 
       if(palette.score == brickAmount)
@@ -383,15 +364,9 @@ void ballCollisionChecks()
     }
 }
 
-bool shouldHealthFallDown()
+bool shouldHeartDown()
 {
-  int healthDownRate = random(0, 101);
-  if(healthDownRate >= 90)
-  {
-    return true;
-  }
-
-  return false;
+  return random(0, 101) > 40;
 }
 
 void gameOverScreen()
@@ -445,14 +420,11 @@ void quitScreen()
 
 void reborn()
 {
-    palette.paletteX = OLED_WIDTH / 2 - palette.paletteWidth / 2;
-    palette.paletteY = OLED_HEIGHT - palette.paletteHeight;
-    palette.paletteUpSide = palette.paletteY;
-    palette.paletteLeftSide = palette.paletteX;
-    palette.paletteRightSide = palette.paletteX + palette.paletteWidth;
+    palette.x = OLED_WIDTH / 2 - palette.width / 2;
+    palette.y = OLED_HEIGHT - palette.height;
 
-    ball.x = palette.paletteX + palette.paletteWidth / 2;
-    ball.y = palette.paletteY - 2 * ball.radius;
+    ball.x = palette.x + palette.width / 2;
+    ball.y = palette.y - 2 * ball.radius;
     float initdirectionX = random(0, 21);
     ball.directionX = initdirectionX / 10 - 1;
     ball.directionY = -1.f; // -1 -> up, 1 -> down
@@ -462,13 +434,16 @@ void backToMenu()
 {
   restartTextX = OLED_WIDTH;
   bIsGameOver = false;
+  
   initVariables();
-
   initializeBricksPosition();
 
   for(int i = 0; i < brickAmount; i++)
   {
-    brickDisableOrderList[i] = false;
+    bricks[i].isHit = false;
+    hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2);  
+    hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2);
+    hearts[i].bottom = hearts[i].y + 5;
   }
 }
 
@@ -517,12 +492,12 @@ void updateBricksForNewChapter()
       {
         if(i % 2 == 0)
         {
-          brickDisableOrderList[i] = false;
+          bricks[i].isHit = false;
           brickAmount++;
         }
         else
         {
-            brickDisableOrderList[i] = true; 
+            bricks[i].isHit = true; 
         }
       }
   }
@@ -536,15 +511,14 @@ void updateBricksForNewChapter()
       i == 14 && i == 15 && i == 16 && i == 17 && 
       i == 20 && i == 21 && i == 22 && i == 23)
       {
-        brickDisableOrderList[i] = true;
+        bricks[i].isHit = true;
         continue;
       }
-      brickDisableOrderList[i] = false;
+
+      bricks[i].isHit = false;
       brickAmount++;
     }
   }
-
-  Serial.println(brickAmount);
 }
 
 void updateBallSpeedForNextChapter(Ball& _ball)
@@ -553,21 +527,31 @@ void updateBallSpeedForNextChapter(Ball& _ball)
   _ball.directionY += _ball.directionY * 0.2;
 }
 
+void heartsCollisionChecks()
+{
+  for (int i = 0; i < brickAmount; i++)
+  {
+    hearts[i].fallDown();
+    if(hearts[i].shouldDown)
+    {
+      hearts[i].collisionCheck(palette);
+    }
+  }
+}
+
 void setup() 
 {
   randomSeed(analogRead(A2));
-  digitalWrite(joyButton, HIGH);
+  digitalWrite(JOY_BUTTON, HIGH);
   initVariables();
   initBegins();
   initializeBricksPosition();
-  health.initializeHealthPos(62, 31);
 }
 
 void loop() 
 {
   display.clearDisplay();
-  
-  if(!bIsGameStart && !bIsGameOver && !bIsGameQuit)
+  if(!bIsGameStart && !bIsGameOver && !bIsGameQuit && !bIsGameWin)
   {
     openingScreen();
   }
@@ -581,19 +565,16 @@ void loop()
       bIsReborn = false;
     }
 
-    if(bShouldHealthFallDown)
-    {
-      //drawHealth(health);
-      //health.fallDownHealth();
-    }
-    
     palette.paletteMove();
+    drawPalette();
     ball.ballMove();
     ballCollisionChecks();
+    heartsCollisionChecks();
     drawBall(); 
     drawBricks();
-    drawPalette();
-  }
+    drawHealth();
+    Serial.println(palette.currentHealth);
+}
 
   else if(bIsGameWin)
   {
@@ -608,7 +589,7 @@ void loop()
   else if(bIsGameOver)
   {
     gameOverScreen(); 
-    if(digitalRead(joyButton) == LOW)
+    if(digitalRead(JOY_BUTTON) == LOW)
     {
       backToMenu();    
     }
