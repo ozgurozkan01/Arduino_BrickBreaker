@@ -18,6 +18,10 @@
 #define SEVEN_2_F 46
 #define SEVEN_2_G 48
 
+#define LOW_HEALTH_LED 6
+#define MID_HEALTH_LED 7
+#define HIGH_HEALTH_LED 8
+
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 
@@ -97,13 +101,15 @@ typedef struct
     }
   }
 
-  void collisionCheck(Palette& _palette)
+  void collisionCheck(Palette& _palette, void (*_updateHealthLeds)())
   {
     if (_palette.x < x && _palette.x + _palette.width > x && _palette.y <= bottom)
     {
       if (_palette.currentHealth < 3)
       {
         _palette.currentHealth++;
+        _updateHealthLeds();
+
       }
       shouldDown = false;
     }
@@ -188,6 +194,10 @@ void initVariables()
     pinMode(SEVEN_2_E, OUTPUT);
     pinMode(SEVEN_2_F, OUTPUT);
     pinMode(SEVEN_2_G, OUTPUT);
+
+    pinMode(LOW_HEALTH_LED, OUTPUT);
+    pinMode(MID_HEALTH_LED, OUTPUT);
+    pinMode(HIGH_HEALTH_LED, OUTPUT);
 
     bIsGameStart = false;
     bIsGameOver = false;
@@ -346,6 +356,7 @@ void ballCollisionChecks()
     if(ball.y > OLED_HEIGHT - ball.radius)
     {
       palette.currentHealth--;
+      updateHealthLeds();
       if(palette.currentHealth <= 0)
       {
         bIsGameOver = true;
@@ -374,7 +385,7 @@ void ballCollisionChecks()
         bricks[i].isHit = true;
         ball.directionY *= -1;
         palette.score++;
-        scoreBoardUpdate();
+        updateScoreBoard();
         hearts[i].shouldDown = shouldHeartDown();
       }
 
@@ -389,7 +400,7 @@ void ballCollisionChecks()
         bricks[i].isHit = true;
         ball.directionX *= -1;
         palette.score++; 
-        scoreBoardUpdate();
+        updateScoreBoard();
         hearts[i].shouldDown = shouldHeartDown();
       }
 
@@ -471,6 +482,9 @@ void backToMenu()
   restartTextX = OLED_WIDTH;
   bIsGameOver = false;
   palette.score = 0;
+  updateScoreBoard();
+  updateHealthLeds();
+
 
   initVariables();
   initializeBricksPosition();
@@ -571,12 +585,12 @@ void heartsCollisionChecks()
     hearts[i].fallDown();
     if(hearts[i].shouldDown)
     {
-      hearts[i].collisionCheck(palette);
+      hearts[i].collisionCheck(palette, updateHealthLeds);
     }
   }
 }
 
-void scoreBoardUpdate()
+void updateScoreBoard()
 {
   int unitsDigit = palette.score % 10;
   int tensDigit = (palette.score / 10) % 10;
@@ -788,6 +802,33 @@ void scoreBoardUpdate()
   }
 }
 
+void updateHealthLeds()
+{
+  switch(palette.currentHealth)
+  {
+    case 0:
+      digitalWrite(LOW_HEALTH_LED, LOW);
+      digitalWrite(MID_HEALTH_LED, LOW);
+      digitalWrite(HIGH_HEALTH_LED, LOW);
+      break;
+    case 1:
+      digitalWrite(LOW_HEALTH_LED, HIGH);
+      digitalWrite(MID_HEALTH_LED, LOW);
+      digitalWrite(HIGH_HEALTH_LED, LOW);
+      break;
+    case 2:
+      digitalWrite(LOW_HEALTH_LED, HIGH);
+      digitalWrite(MID_HEALTH_LED, HIGH);
+      digitalWrite(HIGH_HEALTH_LED, LOW);
+      break;
+    case 3:
+      digitalWrite(LOW_HEALTH_LED, HIGH);
+      digitalWrite(MID_HEALTH_LED, HIGH);
+      digitalWrite(HIGH_HEALTH_LED, HIGH);
+      break;
+  }
+}
+
 void setup() 
 {
   randomSeed(analogRead(A2));
@@ -795,7 +836,8 @@ void setup()
   initVariables();
   initBegins();
   initializeBricksPosition();
-  scoreBoardUpdate();
+  updateScoreBoard();
+  updateHealthLeds();
 }
 
 void loop() 
@@ -823,7 +865,7 @@ void loop()
     drawBricks();
     drawHealth();
     //Serial.println(palette.currentHealth);
-}
+  }
 
   else if(bIsGameWin)
   {
