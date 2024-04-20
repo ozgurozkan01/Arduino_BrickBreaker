@@ -2,6 +2,22 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
 
+#define SEVEN_1_A 22
+#define SEVEN_1_B 24
+#define SEVEN_1_C 26
+#define SEVEN_1_D 28
+#define SEVEN_1_E 30
+#define SEVEN_1_F 32
+#define SEVEN_1_G 34
+
+#define SEVEN_2_A 36
+#define SEVEN_2_B 38
+#define SEVEN_2_C 40
+#define SEVEN_2_D 42
+#define SEVEN_2_E 44
+#define SEVEN_2_F 46
+#define SEVEN_2_G 48
+
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 
@@ -15,6 +31,8 @@
 #define UP_BUTTON 3
 #define DOWN_BUTTON 4
 #define SELECTION_BUTTON 5
+
+#define A 8
 
 #define BRICK_WIDTH 16
 #define BRICK_HEIGHT 4
@@ -154,6 +172,22 @@ void initVariables()
     pinMode(UP_BUTTON, INPUT);
     pinMode(DOWN_BUTTON, INPUT);
     pinMode(SELECTION_BUTTON, INPUT);
+
+    pinMode(SEVEN_1_A, OUTPUT);
+    pinMode(SEVEN_1_B, OUTPUT);
+    pinMode(SEVEN_1_C, OUTPUT);
+    pinMode(SEVEN_1_D, OUTPUT);
+    pinMode(SEVEN_1_E, OUTPUT);
+    pinMode(SEVEN_1_F, OUTPUT);
+    pinMode(SEVEN_1_G, OUTPUT);
+
+    pinMode(SEVEN_2_A, OUTPUT);
+    pinMode(SEVEN_2_B, OUTPUT);
+    pinMode(SEVEN_2_C, OUTPUT);
+    pinMode(SEVEN_2_D, OUTPUT);
+    pinMode(SEVEN_2_E, OUTPUT);
+    pinMode(SEVEN_2_F, OUTPUT);
+    pinMode(SEVEN_2_G, OUTPUT);
 
     bIsGameStart = false;
     bIsGameOver = false;
@@ -340,6 +374,7 @@ void ballCollisionChecks()
         bricks[i].isHit = true;
         ball.directionY *= -1;
         palette.score++;
+        scoreBoardUpdate();
         hearts[i].shouldDown = shouldHeartDown();
       }
 
@@ -354,6 +389,7 @@ void ballCollisionChecks()
         bricks[i].isHit = true;
         ball.directionX *= -1;
         palette.score++; 
+        scoreBoardUpdate();
         hearts[i].shouldDown = shouldHeartDown();
       }
 
@@ -434,7 +470,8 @@ void backToMenu()
 {
   restartTextX = OLED_WIDTH;
   bIsGameOver = false;
-  
+  palette.score = 0;
+
   initVariables();
   initializeBricksPosition();
 
@@ -539,6 +576,218 @@ void heartsCollisionChecks()
   }
 }
 
+void scoreBoardUpdate()
+{
+  int unitsDigit = palette.score % 10;
+  int tensDigit = (palette.score / 10) % 10;
+
+  switch(unitsDigit)
+  {
+    case 0:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B, LOW);
+      digitalWrite(SEVEN_1_C, LOW);
+      digitalWrite(SEVEN_1_D, LOW);
+      digitalWrite(SEVEN_1_E, LOW);
+      digitalWrite(SEVEN_1_F, LOW);
+      digitalWrite(SEVEN_1_G, HIGH);
+      break;
+  
+    case 1:
+      digitalWrite(SEVEN_1_A, HIGH);
+      digitalWrite(SEVEN_1_B, LOW);
+      digitalWrite(SEVEN_1_C, LOW);
+      digitalWrite(SEVEN_1_D, HIGH);
+      digitalWrite(SEVEN_1_E, HIGH);
+      digitalWrite(SEVEN_1_F, HIGH);
+      digitalWrite(SEVEN_1_G, HIGH);
+      break;
+      
+    case 2:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B,LOW);
+      digitalWrite(SEVEN_1_C,HIGH);
+      digitalWrite(SEVEN_1_D,LOW);
+      digitalWrite(SEVEN_1_E,LOW);
+      digitalWrite(SEVEN_1_F,HIGH);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+      
+    case 3:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B,LOW);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,LOW);
+      digitalWrite(SEVEN_1_E,HIGH);
+      digitalWrite(SEVEN_1_F,HIGH);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+      
+    case 4:
+      digitalWrite(SEVEN_1_A, HIGH);
+      digitalWrite(SEVEN_1_B,LOW);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,HIGH);
+      digitalWrite(SEVEN_1_E,HIGH);
+      digitalWrite(SEVEN_1_F,LOW);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+      
+    case 5:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B,HIGH);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,LOW);
+      digitalWrite(SEVEN_1_E,HIGH);
+      digitalWrite(SEVEN_1_F,LOW);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+      
+    case 6:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B,HIGH);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,LOW);
+      digitalWrite(SEVEN_1_E,LOW);
+      digitalWrite(SEVEN_1_F,LOW);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+      
+    case 7:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B,LOW);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,HIGH);
+      digitalWrite(SEVEN_1_E,HIGH);
+      digitalWrite(SEVEN_1_F,HIGH);
+      digitalWrite(SEVEN_1_G,HIGH);
+      break;
+  
+    case 8:
+      digitalWrite(SEVEN_1_A, LOW);
+      digitalWrite(SEVEN_1_B, LOW);
+      digitalWrite(SEVEN_1_C, LOW);
+      digitalWrite(SEVEN_1_D, LOW);
+      digitalWrite(SEVEN_1_E, LOW);
+      digitalWrite(SEVEN_1_F, LOW);
+      digitalWrite(SEVEN_1_G, LOW);
+      break;
+      
+    case 9:
+      digitalWrite(SEVEN_1_A,LOW);
+      digitalWrite(SEVEN_1_B,LOW);
+      digitalWrite(SEVEN_1_C,LOW);
+      digitalWrite(SEVEN_1_D,LOW);
+      digitalWrite(SEVEN_1_E,HIGH);
+      digitalWrite(SEVEN_1_F,LOW);
+      digitalWrite(SEVEN_1_G,LOW);
+      break;
+  }
+
+  switch(tensDigit)
+  {
+      case 0:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B, LOW);
+      digitalWrite(SEVEN_2_C, LOW);
+      digitalWrite(SEVEN_2_D, LOW);
+      digitalWrite(SEVEN_2_E, LOW);
+      digitalWrite(SEVEN_2_F, LOW);
+      digitalWrite(SEVEN_2_G, HIGH);
+      break;
+  
+    case 1:
+      digitalWrite(SEVEN_2_A, HIGH);
+      digitalWrite(SEVEN_2_B, LOW);
+      digitalWrite(SEVEN_2_C, LOW);
+      digitalWrite(SEVEN_2_D, HIGH);
+      digitalWrite(SEVEN_2_E, HIGH);
+      digitalWrite(SEVEN_2_F, HIGH);
+      digitalWrite(SEVEN_2_G, HIGH);
+      break;
+      
+    case 2:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B,LOW);
+      digitalWrite(SEVEN_2_C,HIGH);
+      digitalWrite(SEVEN_2_D,LOW);
+      digitalWrite(SEVEN_2_E,LOW);
+      digitalWrite(SEVEN_2_F,HIGH);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+      
+    case 3:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B,LOW);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,LOW);
+      digitalWrite(SEVEN_2_E,HIGH);
+      digitalWrite(SEVEN_2_F,HIGH);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+      
+    case 4:
+      digitalWrite(SEVEN_2_A, HIGH);
+      digitalWrite(SEVEN_2_B,LOW);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,HIGH);
+      digitalWrite(SEVEN_2_E,HIGH);
+      digitalWrite(SEVEN_2_F,LOW);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+      
+    case 5:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B,HIGH);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,LOW);
+      digitalWrite(SEVEN_2_E,HIGH);
+      digitalWrite(SEVEN_2_F,LOW);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+      
+    case 6:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B,HIGH);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,LOW);
+      digitalWrite(SEVEN_2_E,LOW);
+      digitalWrite(SEVEN_2_F,LOW);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+      
+    case 7:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B,LOW);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,HIGH);
+      digitalWrite(SEVEN_2_E,HIGH);
+      digitalWrite(SEVEN_2_F,HIGH);
+      digitalWrite(SEVEN_2_G,HIGH);
+      break;
+  
+    case 8:
+      digitalWrite(SEVEN_2_A, LOW);
+      digitalWrite(SEVEN_2_B, LOW);
+      digitalWrite(SEVEN_2_C, LOW);
+      digitalWrite(SEVEN_2_D, LOW);
+      digitalWrite(SEVEN_2_E, LOW);
+      digitalWrite(SEVEN_2_F, LOW);
+      digitalWrite(SEVEN_2_G, LOW);
+      break;
+      
+    case 9:
+      digitalWrite(SEVEN_2_A,LOW);
+      digitalWrite(SEVEN_2_B,LOW);
+      digitalWrite(SEVEN_2_C,LOW);
+      digitalWrite(SEVEN_2_D,LOW);
+      digitalWrite(SEVEN_2_E,HIGH);
+      digitalWrite(SEVEN_2_F,LOW);
+      digitalWrite(SEVEN_2_G,LOW);
+      break;
+  }
+}
+
 void setup() 
 {
   randomSeed(analogRead(A2));
@@ -546,6 +795,7 @@ void setup()
   initVariables();
   initBegins();
   initializeBricksPosition();
+  scoreBoardUpdate();
 }
 
 void loop() 
@@ -558,7 +808,6 @@ void loop()
 
   else if(bIsGameStart && !bIsGameOver && !bIsGameQuit && !bIsGameWin)
   {
-
     if(bIsReborn)
     {
       reborn();
@@ -573,7 +822,7 @@ void loop()
     drawBall(); 
     drawBricks();
     drawHealth();
-    Serial.println(palette.currentHealth);
+    //Serial.println(palette.currentHealth);
 }
 
   else if(bIsGameWin)
@@ -594,5 +843,6 @@ void loop()
       backToMenu();    
     }
   }
+
   display.display();
 }
