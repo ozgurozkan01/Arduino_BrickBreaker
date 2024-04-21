@@ -65,7 +65,7 @@ uint8_t DOWN_BUTTONPrev2;
 
 uint8_t openingScreenOptionIndex = 0;
 uint8_t openingScreenOptionsY[3] = {25, 35, 45};
-uint8_t openingScreenOptionsX[3] = {45, 45, 75};
+uint8_t openingScreenOptionsX[3] = {45, 45, 70};
 
 int8_t nextChapterTimer;
 uint8_t chapterNumber;
@@ -112,7 +112,6 @@ typedef struct
     if(shouldDown)
     {
       y++;
-    
       bottom++;
     }
   }
@@ -205,7 +204,7 @@ typedef struct
     }
 
     // BRICKS COLLISION CHECK
-    for(int i = 0; i < brickAmount; i++)
+    for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
       // UP AND DOWN BORDER CHECK
       if( _bricks[i].isHit == false && 
@@ -328,11 +327,12 @@ void initVariables()
     currentMode = Mode::DARK;
     brickAmount = 0;
     nextChapterTimer = 3;
-    chapterNumber = 0;
+    chapterNumber = 1;
 }
 
 void openingScreen()
 {
+  //Serial.println(openingScreenOptionIndex);
   // GAME NAME
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -377,10 +377,13 @@ void openingScreen()
   // MOVING DOWN THROUGH THE OPTIONS
   if(digitalRead(DOWN_BUTTON) == HIGH && DOWN_BUTTONPrev == LOW && openingScreenOptionIndex != 1)
   {
-    openingScreenOptionIndex++;
-    currentOption = (OpeningOptions)openingScreenOptionIndex;
-    selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
-    selectionCursorX = openingScreenOptionsX[openingScreenOptionIndex];
+    if(openingScreenOptionIndex != 2)
+    {
+      openingScreenOptionIndex++;
+      currentOption = (OpeningOptions)openingScreenOptionIndex;
+      selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
+      selectionCursorX = openingScreenOptionsX[openingScreenOptionIndex];  
+    }
   }
 
   else if(digitalRead(DOWN_BUTTON) == HIGH && DOWN_BUTTONPrev2 == LOW && openingScreenOptionIndex != 2)
@@ -427,7 +430,7 @@ void openingScreen()
 // Ekrandaki tuglalari olusturur
 void initializeBricksPosition()
 {
-    for (uint16_t y = BRICK_HEIGHT + GAP; y < OLED_HEIGHT / 2 - BRICK_HEIGHT + GAP; y+= BRICK_HEIGHT + GAP)
+/*    for (uint16_t y = BRICK_HEIGHT + GAP; y < OLED_HEIGHT / 2 - BRICK_HEIGHT + GAP; y+= BRICK_HEIGHT + GAP)
     {
       for( uint16_t x = BRICK_WIDTH + GAP; x < OLED_WIDTH - BRICK_WIDTH+ GAP; x += BRICK_WIDTH + GAP)
       {
@@ -438,12 +441,12 @@ void initializeBricksPosition()
         hearts[brickAmount].bottom = hearts[brickAmount].y + 5; 
         brickAmount++;        
       }
-    }
-} 
+    }*/
+}
 
 void drawBricks()
 {
-  for (int i = 0; i < brickAmount; i++)
+  for (int i = 0; i < MAX_BRICK_AMOUNT; i++)
   {
      if(bricks[i].isHit == false)
      {
@@ -464,7 +467,7 @@ void drawBall()
 
 void drawHealth()
 {
-  for (int i = 0; i < brickAmount; i++)
+  for (int i = 0; i < MAX_BRICK_AMOUNT; i++)
   {
      if(hearts[i].shouldDown == true)
      {
@@ -553,9 +556,9 @@ void backToMenu()
 
 
   initVariables();
-  initializeBricksPosition();
+  setLevel();
 
-  for(int i = 0; i < brickAmount; i++)
+  for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
   {
     bricks[i].isHit = false;
     hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2);  
@@ -588,31 +591,50 @@ void winScreen()
 
   if(nextChapterTimer < 0)
   {
+      chapterNumber++;
       palette.score = 0;
       nextChapterTimer = 3;
       palette.currentHealth = 3;
-      updateBricksForNewChapter();
+      setLevel();
       updateBallSpeedForNextChapter(ball);
       reborn();
       bIsGameWin = false;
   }
 }
 
-void updateBricksForNewChapter()
+void setLevel()
 {
   brickAmount = 0;
-  chapterNumber++;
   
-  if(chapterNumber == 1)
+  if (chapterNumber == 1)
+  {
+    for (uint16_t y = BRICK_HEIGHT + GAP; y < OLED_HEIGHT / 2 - BRICK_HEIGHT + GAP; y+= BRICK_HEIGHT + GAP)
+    {
+      for( uint16_t x = BRICK_WIDTH + GAP; x < OLED_WIDTH - BRICK_WIDTH+ GAP; x += BRICK_WIDTH + GAP)
+      {
+        bricks[brickAmount].x = x;
+        bricks[brickAmount].y = y;
+        hearts[brickAmount].x = x + (BRICK_WIDTH / 2); 
+        hearts[brickAmount].y = y + (BRICK_HEIGHT / 2); 
+        hearts[brickAmount].bottom = hearts[brickAmount].y + 5; 
+        brickAmount++;        
+      }
+    }
+    brickAmount = 0;
+    chapterNumber++;
+  }
+
+  if(chapterNumber == 2)
   {
       for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
       {
         if(i % 2 == 0)
         {
+          Serial.println(bricks[i].isHit);
           bricks[i].isHit = false;
           hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
           hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
-          hearts[i].bottom = hearts[brickAmount].y + 5;
+          hearts[i].bottom = hearts[i].y + 5;
           hearts[i].shouldDown = false;
           brickAmount++;
         }
@@ -621,16 +643,18 @@ void updateBricksForNewChapter()
           bricks[i].isHit = true; 
         }
       }
+          brickAmount = 0;
+    chapterNumber++;
   }
 
-  else if(chapterNumber == 2)
+  if(chapterNumber == 3)
   {
     // 8 9 10 11 14 15 16 17 20 21 22 23
     for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
-      if( i == 8 || i == 9 || i == 10 || i == 11 || 
-      i == 14 || i == 15 || i == 16 || i == 17 || 
-      i == 20 || i == 21 || i == 22 || i == 23)
+      if( i == 7 || i == 8 || i == 9 || i == 10 || 
+      i == 13 || i == 14 || i == 15 || i == 16 || 
+      i == 19 || i == 20 || i == 21 || i == 22)
       {
         bricks[i].isHit = true;
         continue;
@@ -639,10 +663,39 @@ void updateBricksForNewChapter()
       bricks[i].isHit = false;
       hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
       hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
-      hearts[i].bottom = hearts[brickAmount].y + 5;
+      hearts[i].bottom = hearts[i].y + 5;
       hearts[i].shouldDown = false;
       brickAmount++;
     }
+              brickAmount = 0;
+    chapterNumber++;
+  }
+
+  if(chapterNumber == 4)
+  {
+    for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
+    {
+      if( i == 1 || i == 3 || i == 5 || i == 6 || 
+      i == 8 || i == 10 || i == 13 || i == 15 || 
+      i == 17 || i == 18 || i == 20 || i == 22 || 
+      i == 25 || i == 27 || i == 29)
+      {
+        bricks[i].isHit = true;
+        continue;
+      }
+
+      bricks[i].isHit = false;
+      hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
+      hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
+      hearts[i].bottom = hearts[i].y + 5;
+      hearts[i].shouldDown = false;
+      brickAmount++;
+    }
+  }
+
+  if(chapterNumber == 5)
+  {
+    
   }
 }
 
@@ -654,7 +707,7 @@ void updateBallSpeedForNextChapter(Ball& _ball)
 
 void heartsCollisionChecks()
 {
-  for (int i = 0; i < brickAmount; i++)
+  for (int i = 0; i < MAX_BRICK_AMOUNT; i++)
   {
     hearts[i].fallDown();
     if(hearts[i].shouldDown)
@@ -909,7 +962,7 @@ void setup()
   digitalWrite(JOY_BUTTON, HIGH);
   initVariables();
   initBegins();
-  initializeBricksPosition();
+  setLevel();
   updateScoreBoard();
   updateHealthLeds();
 }
