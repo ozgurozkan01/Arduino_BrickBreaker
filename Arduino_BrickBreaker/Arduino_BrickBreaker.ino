@@ -43,14 +43,44 @@
 
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT);
 
+bool bIsGameStart;
+bool bIsGameOver;
+bool bIsGameQuit;
+bool bIsGameWin;
+bool bIsReborn;
+bool bShouldHealthFallDown;
+uint8_t brickAmount;
+
+int16_t restartTextX = OLED_WIDTH;
+int16_t quitTextX = OLED_WIDTH;
+
+// Cursor positions in opening screen to choose option
+uint8_t selectionCursorY;
+uint8_t selectionCursorX;
+
+uint8_t SELECTION_BUTTONPrev;
+uint8_t UP_BUTTONPrev; // prevent running in each frame when button is staying pressed
+uint8_t DOWN_BUTTONPrev; // prevent running in each frame when button is staying pressed
+uint8_t DOWN_BUTTONPrev2;
+
+uint8_t openingScreenOptionIndex = 0;
+uint8_t openingScreenOptionsY[3] = {25, 35, 45};
+uint8_t openingScreenOptionsX[3] = {45, 45, 75};
+
+int8_t nextChapterTimer;
+uint8_t chapterNumber;
+
+String modeText = "DARK";
+
 typedef struct
 {
   uint8_t maxHealth = 3;
   int8_t currentHealth = 3;
   uint8_t height = 3;
   uint8_t width = 20;
-  uint8_t x;
-  uint8_t y;
+  float x;
+  float y;
+  float speed = 2;
   uint8_t score = 0;
 
   void paletteMove()
@@ -60,30 +90,15 @@ typedef struct
   
     if (yValue < 10 && x < OLED_WIDTH - width) 
     {
-      x++; 
+      x += speed; 
     }
       
     if (yValue > 1000 && x > 0) 
     {
-      x--;   
+      x -= speed; 
     }
   }  
 } Palette;
-
-typedef struct
-{
-  uint8_t radius = 2;
-  float x;
-  float y;
-  float directionX; // - -> left, + -> rigth
-  float directionY; // -1 -> up, 1 -> down
-
-  void ballMove()
-  {
-      y += directionY;
-      x += directionX;
-  }
-} Ball;
 
 typedef struct 
 {
@@ -97,6 +112,7 @@ typedef struct
     if(shouldDown)
     {
       y++;
+    
       bottom++;
     }
   }
@@ -127,45 +143,130 @@ typedef struct
   bool isHit;
 } Brick;
 
+typedef struct
+{
+  float radius = 2;
+  float x;
+  float y;
+  float directionX; // - -> left, + -> rigth
+  float directionY; // -1 -> up, 1 -> down
+  bool shouldMove = false;
+
+  void ballMove(Palette& _palette)
+  {
+    if (shouldMove)
+    {
+      y += directionY;
+      x += directionX;
+    }
+
+    else
+    {
+      x = _palette.x + _palette.width / 2;
+    }
+
+    if (digitalRead(JOY_BUTTON) == 0)
+    {
+      shouldMove = true;
+    }
+  }
+
+  void collisionChecks(Palette& _palette, void (*_updateHealthLeds)(), void (*_updateScoreBoard)(), bool (*_shouldHeartDown)(), Heart _hearts[], Brick _bricks[])
+  {    
+    // LEFT AND RIGHT SCREEN BORDER COLLISION CHECK
+    if(x < radius || x > OLED_WIDTH - radius)
+    {
+      directionX *= -1;  
+    }
+
+    // UP SCREEN BORDER COLLISION CHECK
+    if(y < radius)
+    {
+      directionY *= -1;
+    }
+    // DOWN SCREEN BORDER COLLISION CHECK
+    if(y > OLED_HEIGHT - radius)
+    {
+      _palette.currentHealth--;
+      _updateHealthLeds();
+      if(_palette.currentHealth <= 0)
+      {
+        bIsGameOver = true;
+        delay(3000);       
+        return;
+      }
+      bIsReborn = true;     
+    }
+    
+    // PALETTE Y DIRECTION COLISION CHECK
+    if(x <= _palette.x + _palette.width && x >= _palette.x && y + radius >= _palette.y)
+    {
+      directionY *= -1;
+    }
+
+    // BRICKS COLLISION CHECK
+    for(int i = 0; i < brickAmount; i++)
+    {
+      // UP AND DOWN BORDER CHECK
+      if( _bricks[i].isHit == false && 
+          x <= _bricks[i].x + BRICK_WIDTH && // LEFT BORDER 
+          x >= _bricks[i].x && // RIGTH BORDER
+          ((y > _bricks[i].y && y - _bricks[i].y <= radius + BRICK_HEIGHT) || // DOWN BORDER
+           (y < _bricks[i].y && y - _bricks[i].y >= -radius)) // UP BORDER
+        )
+      {
+        _bricks[i].isHit = true;
+        directionY *= -1;
+        _palette.score++;
+        _updateScoreBoard();
+        _hearts[i].shouldDown = _shouldHeartDown();
+      }
+
+
+      else if( _bricks[i].isHit == false && 
+          y <= _bricks[i].y + BRICK_HEIGHT &&
+          y >= _bricks[i].y &&
+          ((x > _bricks[i].x && x - _bricks[i].x <= radius + BRICK_WIDTH) || 
+           (x < _bricks[i].x && x - _bricks[i].x >= -radius))
+        )
+      {
+        _bricks[i].isHit = true;
+        directionX *= -1;
+        _palette.score++; 
+        _updateScoreBoard();
+        _hearts[i].shouldDown = _shouldHeartDown();
+      }
+
+      if(_palette.score == brickAmount)
+      {
+        bIsGameWin = true;
+      }
+    }
+  }
+
+} Ball;
+
 Ball ball;
 Palette palette;
 
 Brick bricks[MAX_BRICK_AMOUNT];
 Heart hearts[MAX_BRICK_AMOUNT];
 
-uint8_t brickAmount;
-
-bool bIsGameStart;
-bool bIsGameOver;
-bool bIsGameQuit;
-bool bIsGameWin;
-bool bIsReborn;
-bool bShouldHealthFallDown;
-
-int16_t restartTextX = OLED_WIDTH;
-int16_t quitTextX = OLED_WIDTH;
-
-// Cursor positions in opening screen to choose option
-uint8_t selectionCursorY;
-uint8_t selectionCursorX;
-
-uint8_t SELECTION_BUTTONPrev;
-uint8_t UP_BUTTONPrev; // prevent running in each frame when button is staying pressed
-uint8_t DOWN_BUTTONPrev; // prevent running in each frame when button is staying pressed
-
-uint8_t openingScreenOptionIndex = 0;
-uint8_t openingScreenOptionsY[2]= {30, 40};
-
-int8_t nextChapterTimer;
-uint8_t chapterNumber;
-
 enum OpeningOptions
 {
   START,
-  QUIT
+  QUIT,
+  MODE 
+};
+
+enum Mode
+{
+  DARK, 
+  LIGHT
 };
 
 OpeningOptions currentOption;
+Mode currentMode;
 
 void initBegins()
 {
@@ -207,7 +308,7 @@ void initVariables()
     bShouldHealthFallDown = false;
     
     selectionCursorX = 45;
-    selectionCursorY = 30;
+    selectionCursorY = 25;
 
     palette.x = OLED_WIDTH / 2 - palette.width / 2;
     palette.y = OLED_HEIGHT - palette.height;
@@ -224,6 +325,7 @@ void initVariables()
     DOWN_BUTTONPrev = LOW;
 
     currentOption = OpeningOptions::START;
+    currentMode = Mode::DARK;
     brickAmount = 0;
     nextChapterTimer = 3;
     chapterNumber = 0;
@@ -239,13 +341,23 @@ void openingScreen()
   // START TEXT
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(10, 30);
+  display.setCursor(10, 25);
   display.println("START");
   // QUIT TEXT
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(10, 40);
+  display.setCursor(10, 35);
   display.println("QUIT");
+  // MODE TEXT
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(10, 45);
+  display.println("MODE: ");
+  // MODE TEXT
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(40, 45);
+  display.println(modeText);
   // SELECTION CURSOR
   display.setTextSize(1);
   display.setTextColor(WHITE);
@@ -258,6 +370,7 @@ void openingScreen()
     openingScreenOptionIndex--;
     currentOption = (OpeningOptions)openingScreenOptionIndex;
     selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
+    selectionCursorX = openingScreenOptionsX[openingScreenOptionIndex];
   }
   UP_BUTTONPrev = digitalRead(UP_BUTTON);
   
@@ -267,8 +380,19 @@ void openingScreen()
     openingScreenOptionIndex++;
     currentOption = (OpeningOptions)openingScreenOptionIndex;
     selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
+    selectionCursorX = openingScreenOptionsX[openingScreenOptionIndex];
   }
+
+  else if(digitalRead(DOWN_BUTTON) == HIGH && DOWN_BUTTONPrev2 == LOW && openingScreenOptionIndex != 2)
+  {
+    openingScreenOptionIndex++;
+    currentOption = (OpeningOptions)openingScreenOptionIndex;
+    selectionCursorY = openingScreenOptionsY[openingScreenOptionIndex];
+    selectionCursorX = openingScreenOptionsX[openingScreenOptionIndex];
+  }
+
   DOWN_BUTTONPrev = digitalRead(DOWN_BUTTON);
+  DOWN_BUTTONPrev2 = digitalRead(DOWN_BUTTON);
   
   // CHOOSE CURRENT OPTION
   if(digitalRead(SELECTION_BUTTON) == HIGH && SELECTION_BUTTONPrev == LOW)
@@ -280,6 +404,19 @@ void openingScreen()
         break;
       case OpeningOptions::QUIT:
         bIsGameQuit = true;
+      case OpeningOptions::MODE:
+        if(currentMode == Mode::LIGHT)
+        {
+          currentMode = Mode::DARK;
+          modeText = "DARK";
+          display.invertDisplay(false);
+        }  
+        else if(currentMode == Mode::DARK)
+        {
+          currentMode = Mode::LIGHT;
+          modeText = "LIGHT";
+          display.invertDisplay(true);
+        }  
         break;
     }
   }
@@ -338,82 +475,9 @@ void drawHealth()
   }
 }
 
-void ballCollisionChecks()
-{    
-    // LEFT AND RIGHT SCREEN BORDER COLLISION CHECK
-    if(ball.x < ball.radius || ball.x > OLED_WIDTH - ball.radius)
-    {
-      ball.directionX *= -1;  
-
-    }
-
-    // UP SCREEN BORDER COLLISION CHECK
-    if(ball.y < ball.radius)
-    {
-      ball.directionY *= -1;
-    }
-    // DOWN SCREEN BORDER COLLISION CHECK
-    if(ball.y > OLED_HEIGHT - ball.radius)
-    {
-      palette.currentHealth--;
-      updateHealthLeds();
-      if(palette.currentHealth <= 0)
-      {
-        bIsGameOver = true;
-        delay(3000);       
-        return;
-      }
-      bIsReborn = true;     
-    }
-    
-    // PALETTE COLISION CHECK
-    if(ball.x <= palette.x + palette.width && ball.x >= palette.x && ball.y + ball.radius >= palette.y)
-    {
-      ball.directionY *= -1;
-    }
-    // BRICKS COLLISION CHECK
-    for(int i = 0; i < brickAmount; i++)
-    {
-      // UP AND DOWN BORDER CHECK
-      if( bricks[i].isHit == false && 
-          ball.x <= bricks[i].x + BRICK_WIDTH && // LEFT BORDER 
-          ball.x >= bricks[i].x && // RIGTH BORDER
-          ((ball.y > bricks[i].y && ball.y - bricks[i].y <= ball.radius + BRICK_HEIGHT) || // DOWN BORDER
-           (ball.y < bricks[i].y && ball.y - bricks[i].y >= -ball.radius)) // UP BORDER
-        )
-      {
-        bricks[i].isHit = true;
-        ball.directionY *= -1;
-        palette.score++;
-        updateScoreBoard();
-        hearts[i].shouldDown = shouldHeartDown();
-      }
-
-
-      else if( bricks[i].isHit == false && 
-          ball.y <= bricks[i].y + BRICK_HEIGHT &&
-          ball.y >= bricks[i].y &&
-          ((ball.x > bricks[i].x && ball.x - bricks[i].x <= ball.radius + BRICK_WIDTH) || 
-           (ball.x < bricks[i].x && ball.x - bricks[i].x >= -ball.radius))
-        )
-      {
-        bricks[i].isHit = true;
-        ball.directionX *= -1;
-        palette.score++; 
-        updateScoreBoard();
-        hearts[i].shouldDown = shouldHeartDown();
-      }
-
-      if(palette.score == brickAmount)
-      {
-        bIsGameWin = true;
-      }
-    }
-}
-
 bool shouldHeartDown()
 {
-  return random(0, 101) > 40;
+  return random(0, 101) > 90;
 }
 
 void gameOverScreen()
@@ -467,14 +531,15 @@ void quitScreen()
 
 void reborn()
 {
-    palette.x = OLED_WIDTH / 2 - palette.width / 2;
-    palette.y = OLED_HEIGHT - palette.height;
+  ball.shouldMove = false;
 
-    ball.x = palette.x + palette.width / 2;
-    ball.y = palette.y - 2 * ball.radius;
-    float initdirectionX = random(0, 21);
-    ball.directionX = initdirectionX / 10 - 1;
-    ball.directionY = -1.f; // -1 -> up, 1 -> down
+  palette.x = OLED_WIDTH / 2 - palette.width / 2;
+  palette.y = OLED_HEIGHT - palette.height;
+  ball.x = palette.x + palette.width / 2;
+  ball.y = palette.y - 2 * ball.radius;
+  float initdirectionX = random(0, 21);
+  ball.directionX = initdirectionX / 10 - 1;
+  ball.directionY = -1.5f; // -1 -> up, 1 -> down
 }
 
 void backToMenu()
@@ -482,6 +547,7 @@ void backToMenu()
   restartTextX = OLED_WIDTH;
   bIsGameOver = false;
   palette.score = 0;
+  palette.currentHealth = palette.maxHealth;
   updateScoreBoard();
   updateHealthLeds();
 
@@ -544,11 +610,15 @@ void updateBricksForNewChapter()
         if(i % 2 == 0)
         {
           bricks[i].isHit = false;
+          hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
+          hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
+          hearts[i].bottom = hearts[brickAmount].y + 5;
+          hearts[i].shouldDown = false;
           brickAmount++;
         }
         else
         {
-            bricks[i].isHit = true; 
+          bricks[i].isHit = true; 
         }
       }
   }
@@ -558,15 +628,19 @@ void updateBricksForNewChapter()
     // 8 9 10 11 14 15 16 17 20 21 22 23
     for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
-      if( i == 8 && i == 9 && i == 10 && i == 11 && 
-      i == 14 && i == 15 && i == 16 && i == 17 && 
-      i == 20 && i == 21 && i == 22 && i == 23)
+      if( i == 8 || i == 9 || i == 10 || i == 11 || 
+      i == 14 || i == 15 || i == 16 || i == 17 || 
+      i == 20 || i == 21 || i == 22 || i == 23)
       {
         bricks[i].isHit = true;
         continue;
       }
 
       bricks[i].isHit = false;
+      hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
+      hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
+      hearts[i].bottom = hearts[brickAmount].y + 5;
+      hearts[i].shouldDown = false;
       brickAmount++;
     }
   }
@@ -858,8 +932,8 @@ void loop()
 
     palette.paletteMove();
     drawPalette();
-    ball.ballMove();
-    ballCollisionChecks();
+    ball.ballMove(palette);
+    ball.collisionChecks(palette, updateHealthLeds, updateScoreBoard, shouldHeartDown, hearts, bricks);
     heartsCollisionChecks();
     drawBall(); 
     drawBricks();
