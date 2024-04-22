@@ -2,6 +2,8 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_GFX.h>
 
+#define PI 3.14159
+
 #define SEVEN_1_A 22
 #define SEVEN_1_B 24
 #define SEVEN_1_C 26
@@ -69,6 +71,7 @@ uint8_t openingScreenOptionsX[3] = {45, 45, 70};
 
 int8_t nextChapterTimer;
 uint8_t chapterNumber;
+uint8_t targetScore;
 
 String modeText = "DARK";
 
@@ -80,7 +83,7 @@ typedef struct
   uint8_t width = 20;
   float x;
   float y;
-  float speed = 2;
+  float speed = 2.5;
   uint8_t score = 0;
 
   void paletteMove()
@@ -137,9 +140,10 @@ typedef struct
 
 typedef struct 
 {
-  uint8_t x;
-  uint8_t y;
-  bool isHit;
+  float x;
+  float y;
+  bool isHit = false;
+  bool isObtacle = false;
 } Brick;
 
 typedef struct
@@ -147,9 +151,29 @@ typedef struct
   float radius = 2;
   float x;
   float y;
+  float speed = 1.5;
   float directionX; // - -> left, + -> rigth
   float directionY; // -1 -> up, 1 -> down
   bool shouldMove = false;
+  float speedIncrement = 0;
+
+  void setSpeed()
+  {
+    double angleAsDegree = random(45, 60);
+
+    int8_t xChanger = ((int)angleAsDegree % 2 == 0) ? -1 : 1;
+
+    directionX = xChanger * speed * cos(angleAsDegree * PI / 180);
+    directionY = -speed * sin(angleAsDegree * PI / 180);
+  }
+
+  void updateBallSpeedForNextChapter()
+  {
+    speed += speed * 0.2;
+    speed += speed * 0.2;
+
+    setSpeed();
+  }
 
   void ballMove(Palette& _palette)
   {
@@ -198,7 +222,7 @@ typedef struct
     }
     
     // PALETTE Y DIRECTION COLISION CHECK
-    if(x <= _palette.x + _palette.width && x >= _palette.x && y + radius >= _palette.y)
+    if(x <= _palette.x + _palette.width + 1 && x >= _palette.x - 1 && y + radius >= _palette.y)
     {
       directionY *= -1;
     }
@@ -214,29 +238,35 @@ typedef struct
            (y < _bricks[i].y && y - _bricks[i].y >= -radius)) // UP BORDER
         )
       {
+        if(!_bricks[i].isObtacle)
+        {
         _bricks[i].isHit = true;
-        directionY *= -1;
         _palette.score++;
         _updateScoreBoard();
         _hearts[i].shouldDown = _shouldHeartDown();
+        }
+        directionY *= -1;
       }
 
 
       else if( _bricks[i].isHit == false && 
-          y <= _bricks[i].y + BRICK_HEIGHT &&
+          y <= _bricks[i].y + BRICK_HEIGHT&&
           y >= _bricks[i].y &&
           ((x > _bricks[i].x && x - _bricks[i].x <= radius + BRICK_WIDTH) || 
            (x < _bricks[i].x && x - _bricks[i].x >= -radius))
         )
       {
-        _bricks[i].isHit = true;
+        if(!_bricks[i].isObtacle)
+        {
+          _bricks[i].isHit = true;
+          _palette.score++; 
+          _updateScoreBoard();
+          _hearts[i].shouldDown = _shouldHeartDown();        
+        }
         directionX *= -1;
-        _palette.score++; 
-        _updateScoreBoard();
-        _hearts[i].shouldDown = _shouldHeartDown();
       }
 
-      if(_palette.score == brickAmount)
+      if(_palette.score == targetScore)
       {
         bIsGameWin = true;
       }
@@ -315,9 +345,7 @@ void initVariables()
     //ball.radius = 1;
     ball.x = palette.x + palette.width / 2;
     ball.y = palette.y - 2 * ball.radius;
-    float initdirectionX = random(0, 21);
-    ball.directionX = initdirectionX / 10 - 1;
-    ball.directionY = -1.5f; // -1 -> up, 1 -> down
+    ball.setSpeed();
 
     SELECTION_BUTTONPrev = LOW;
     UP_BUTTONPrev = LOW;
@@ -328,6 +356,7 @@ void initVariables()
     brickAmount = 0;
     nextChapterTimer = 3;
     chapterNumber = 1;
+    targetScore = 0;
 }
 
 void openingScreen()
@@ -451,6 +480,11 @@ void drawBricks()
      if(bricks[i].isHit == false)
      {
        display.fillRect(bricks[i].x, bricks[i].y, BRICK_WIDTH, BRICK_HEIGHT, WHITE); 
+       
+       if(bricks[i].isObtacle)
+       {
+        display.fillCircle(bricks[i].x + BRICK_WIDTH / 2, bricks[i].y + BRICK_HEIGHT / 2, 1 , BLACK);
+       }
      }
   }
 }
@@ -535,14 +569,12 @@ void quitScreen()
 void reborn()
 {
   ball.shouldMove = false;
-
   palette.x = OLED_WIDTH / 2 - palette.width / 2;
   palette.y = OLED_HEIGHT - palette.height;
   ball.x = palette.x + palette.width / 2;
   ball.y = palette.y - 2 * ball.radius;
-  float initdirectionX = random(0, 21);
-  ball.directionX = initdirectionX / 10 - 1;
-  ball.directionY = -1.5f; // -1 -> up, 1 -> down
+  ball.setSpeed();
+  bIsReborn = false;
 }
 
 void backToMenu()
@@ -551,6 +583,8 @@ void backToMenu()
   bIsGameOver = false;
   palette.score = 0;
   palette.currentHealth = palette.maxHealth;
+  ball.shouldMove = false;
+  ball.speed = 2;
   updateScoreBoard();
   updateHealthLeds();
 
@@ -561,6 +595,7 @@ void backToMenu()
   for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
   {
     bricks[i].isHit = false;
+    bricks[i].isObtacle = false;
     hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2);  
     hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2);
     hearts[i].bottom = hearts[i].y + 5;
@@ -569,6 +604,29 @@ void backToMenu()
 
 void winScreen()
 {
+  if (chapterNumber == 5)
+  {
+    display.setTextSize(2);
+    display.setTextWrap(false);
+    display.setTextColor(WHITE);
+    display.setCursor(20, 10);
+    display.println("YOU WON");
+    
+    display.setTextSize(1);
+    display.setTextWrap(false);
+    display.setTextColor(WHITE);
+    display.setCursor(10, 35);
+    display.println("You finished game !");
+
+    display.setTextSize(1);
+    display.setTextWrap(false);
+    display.setTextColor(WHITE);
+    display.setCursor(40, 50);
+    display.print("SCORE : ");
+    display.println(palette.score);
+    return;
+  }
+  
   display.setTextSize(2);
   display.setTextWrap(false);
   display.setTextColor(WHITE);
@@ -592,11 +650,10 @@ void winScreen()
   if(nextChapterTimer < 0)
   {
       chapterNumber++;
-      palette.score = 0;
       nextChapterTimer = 3;
       palette.currentHealth = 3;
       setLevel();
-      updateBallSpeedForNextChapter(ball);
+      ball.updateBallSpeedForNextChapter();
       reborn();
       bIsGameWin = false;
   }
@@ -610,7 +667,7 @@ void setLevel()
   {
     for (uint16_t y = BRICK_HEIGHT + GAP; y < OLED_HEIGHT / 2 - BRICK_HEIGHT + GAP; y+= BRICK_HEIGHT + GAP)
     {
-      for( uint16_t x = BRICK_WIDTH + GAP; x < OLED_WIDTH - BRICK_WIDTH+ GAP; x += BRICK_WIDTH + GAP)
+      for( uint16_t x = BRICK_WIDTH - 3; x < OLED_WIDTH - BRICK_WIDTH+ GAP; x += BRICK_WIDTH + GAP)
       {
         bricks[brickAmount].x = x;
         bricks[brickAmount].y = y;
@@ -620,8 +677,6 @@ void setLevel()
         brickAmount++;        
       }
     }
-    brickAmount = 0;
-    chapterNumber++;
   }
 
   if(chapterNumber == 2)
@@ -630,21 +685,32 @@ void setLevel()
       {
         if(i % 2 == 0)
         {
-          Serial.println(bricks[i].isHit);
+          if(i == 2 || i == 12 || i == 16 || i == 26)
+          {
+            bricks[i].isObtacle = true;
+          }
+          else
+          {
+            bricks[i].isObtacle = false;
+          }
+
+          if(!bricks[i].isObtacle)
+          {
+            brickAmount++;
+          }
+
           bricks[i].isHit = false;
           hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
           hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
           hearts[i].bottom = hearts[i].y + 5;
           hearts[i].shouldDown = false;
-          brickAmount++;
         }
         else
         {
           bricks[i].isHit = true; 
+          bricks[i].isObtacle = false; 
         }
       }
-          brickAmount = 0;
-    chapterNumber++;
   }
 
   if(chapterNumber == 3)
@@ -653,11 +719,25 @@ void setLevel()
     for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
       if( i == 7 || i == 8 || i == 9 || i == 10 || 
-      i == 13 || i == 14 || i == 15 || i == 16 || 
       i == 19 || i == 20 || i == 21 || i == 22)
       {
         bricks[i].isHit = true;
+        bricks[i].isObtacle = false;
         continue;
+      }
+
+      if(i == 13 || i == 14 || i == 15 || i == 16)
+      {
+        bricks[i].isObtacle = true;
+      }
+      else
+      {
+        bricks[i].isObtacle = false;
+      }
+
+      if(!bricks[i].isObtacle)
+      {
+        brickAmount++;
       }
 
       bricks[i].isHit = false;
@@ -665,23 +745,25 @@ void setLevel()
       hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
       hearts[i].bottom = hearts[i].y + 5;
       hearts[i].shouldDown = false;
-      brickAmount++;
     }
-              brickAmount = 0;
-    chapterNumber++;
   }
 
   if(chapterNumber == 4)
   {
     for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
     {
-      if( i == 1 || i == 3 || i == 5 || i == 6 || 
-      i == 8 || i == 10 || i == 13 || i == 15 || 
-      i == 17 || i == 18 || i == 20 || i == 22 || 
-      i == 25 || i == 27 || i == 29)
+      if(i == 6 || i == 8 || i == 10 || i == 18 || i == 20 || i == 22)
       {
-        bricks[i].isHit = true;
-        continue;
+        bricks[i].isObtacle = true;
+      }
+      else
+      {
+        bricks[i].isObtacle = false;
+      }
+
+      if(!bricks[i].isObtacle)
+      {
+        brickAmount++;
       }
 
       bricks[i].isHit = false;
@@ -689,20 +771,41 @@ void setLevel()
       hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
       hearts[i].bottom = hearts[i].y + 5;
       hearts[i].shouldDown = false;
-      brickAmount++;
     }
   }
 
   if(chapterNumber == 5)
   {
-    
-  }
-}
+    for(int i = 0; i < MAX_BRICK_AMOUNT; i++)
+    {
+      bricks[i].isObtacle = false;
+      
+      if(i == 0 || i == 1 || i == 4 || i == 5 || i == 6 || i == 11 ||
+      i == 18 || i == 23 || i == 24 || i == 25 || i == 28 || i == 29)
+      {
+        bricks[i].isHit = true;
+        continue;
+      }
+      
+      else if (i == 8 || i == 9 || i == 20 || i == 21)
+      {
+        bricks[i].isObtacle = true;
+      }
 
-void updateBallSpeedForNextChapter(Ball& _ball)
-{
-  _ball.directionX += _ball.directionX * 0.2;
-  _ball.directionY += _ball.directionY * 0.2;
+      if(!bricks[i].isObtacle)
+      {
+        brickAmount++;
+      }
+
+      bricks[i].isHit = false;
+      hearts[i].x = bricks[i].x + (BRICK_WIDTH / 2); 
+      hearts[i].y = bricks[i].y + (BRICK_HEIGHT / 2); 
+      hearts[i].bottom = hearts[i].y + 5;
+      hearts[i].shouldDown = false;
+    }
+  }
+
+  targetScore += brickAmount;
 }
 
 void heartsCollisionChecks()
@@ -980,7 +1083,6 @@ void loop()
     if(bIsReborn)
     {
       reborn();
-      bIsReborn = false;
     }
 
     palette.paletteMove();
@@ -991,7 +1093,6 @@ void loop()
     drawBall(); 
     drawBricks();
     drawHealth();
-    //Serial.println(palette.currentHealth);
   }
 
   else if(bIsGameWin)
