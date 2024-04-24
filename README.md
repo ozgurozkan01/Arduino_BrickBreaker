@@ -14,10 +14,10 @@ This project was done to gain experience about embedded systems.
 * 2 seven segments show the player score of the character.
 * There is a 10% chance of life dropping in the game. As the health drops, if the character does not have max health, the health increases. 
 ## Dependencies
-* AdaFruit and GFX lib
+* AdaFruit and GFX library
 * Arduino Mega (UNO's power is not enough.)
-* 3 Led for health
-* 2 for Seven Segment score
+* 3 Leds for health
+* 2 Seven Segments for score
 * 1 joystick for movement
 * 1 OLED screen
 * 3 buttons
