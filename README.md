@@ -2,6 +2,14 @@
 Making Brick Breaker Game with arduino and C++ as school peroject
 ## Purpose
 This project was done to gain experience about embedded systems.
+## Controls
+| Button  | Action |
+| ------------- | ------------- |
+| Left Button  | Select  |
+| Middle Button  | Down  |
+| Right Button  | Up  |
+| Joystick Button  | Back to Start |
+| Joystick  |   Movement  |
 ## Features
 * There are 5 levels.
 * There are Light and Dark modes.
