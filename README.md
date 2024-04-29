@@ -8,7 +8,7 @@ This project was done to gain experience about embedded systems.
 | Left Button  | Select  |
 | Middle Button  | Down  |
 | Right Button  | Up  |
-| Joystick Button  | Back to Start |
+| Joystick Button  | Back to Start - Throwing Ball |
 | Joystick  |   Movement  |
 ## Features
 * There are 5 levels.
