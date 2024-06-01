@@ -17,7 +17,6 @@ This project was done to gain experience about embedded systems.
 | BEFORE             | AFTER                          |
 :-------------------------:|:-------------------------:
 | <img src="./Screenshots/Before-MainMenu.jpg" width="250">    | <img src="./Screenshots/After-MainMenu.jpg" width="250"> | 
-| <img src="./Screenshots/Before-InGame.jpg" width="250">  | <img src="./Screenshots/After-InGame.jpg" width="250"> |
 
 ## Features
 * There are 5 levels.
