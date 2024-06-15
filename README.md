@@ -1,5 +1,5 @@
 # Arduino_BrickBreaker
-Making Brick Breaker Game with arduino and C++ as school peroject
+Making Brick Breaker Game with arduino and C++ as school project
 
 ## Purpose
 This project was done to gain experience about embedded systems.
